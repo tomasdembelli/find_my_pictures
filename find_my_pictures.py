@@ -1,16 +1,18 @@
 import face_recognition as fr
 import os
 from PIL import Image, ImageDraw
-import multiprocessing
+from multiprocessing import Manager, Pool
 import numpy as np
 import imghdr
+import time
 
 
 class FindMyPictures():
     """Find pictures of interest within a folder of pictures."""
     def __init__(self, input_sample=None, input_stack=None,
-                output=None, accuracy='medium'):
-        
+                output=None, verbose=False):
+        """Explain arguments here."""
+        self.verbose = verbose
         # Initializing folders
         cwd = os.getcwd()
         if input_sample:
@@ -46,7 +48,7 @@ class FindMyPictures():
             for file in file_list:
                 if imghdr.what(os.path.join(folder, file)):
                     img_files.append(os.path.join(folder, file))
-                else:
+                elif self.verbose:
                     print(f'{file} is not an image file')
             if len(img_files) == 0:
                 raise ValueError(f'There is no image in {folder}')
@@ -54,17 +56,40 @@ class FindMyPictures():
             raise ValueError(f'{folder} is not a directory.')
         return img_files
     
-    def find_pictures(self):
-        """Looks for the person of interest in the input stack images."""
-        for img in self.stack_images:
-            print(f'{img}', end='\t-->  ')
+    def analyze_img(self, img):
+            """Return True if there is a positive match."""
             img_load = fr.load_image_file(img)
             img_enc = fr.face_encodings(img_load)
-            print(f'{len(img_enc)}', end='')
-            for face in img_enc:
-                match = fr.compare_faces(self.known_enc, face)
-                if True in match:
-                    print('MATCH', end='')
+            result = False
+            if len(img_enc) > 0:
+                for face in img_enc:
+                    match = fr.compare_faces(self.known_enc, face)
+                    # Break the loop at first match. No need to check other faces.
+                    if True in match:
+                        result = True
+                        self.match_count.value += 1
+                        break
+            if self.verbose:
+                status = [f'{img.split("/")[-1]}\t']
+                if len(img_enc) > 0:
+                    status.append(f'{len(img_enc)} face detected')
                 else:
-                    print('----', end='')
-            print('')
+                    status.append('No face detected')
+                if result:
+                    status.append('** POSITIVE MATCH **')
+                print(' '.join(status))
+            return result
+    
+    def find_pictures(self):
+        """Looks for the person of interest in the input stack images."""
+        print(f'{len(self.stack_images)} images will be analyzed.')
+        start = time.time()
+        with Manager() as manager:
+            self.match_count = manager.Value('i', 0)
+            with Pool() as pool:
+                pool.map(self.analyze_img, self.stack_images)
+                end = time.time()
+                self.process_time = end - start
+                print(f'Finished within {self.process_time} seconds.')
+                if self.match_count.value > 0:
+                    print(f'Person of interest is recognised in {self.match_count.value} images.')
