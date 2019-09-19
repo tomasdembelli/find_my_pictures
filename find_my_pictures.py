@@ -5,14 +5,14 @@ from multiprocessing import Manager, Pool
 import numpy as np
 import imghdr
 import time
+from datetime import datetime
+from shutil import copy, move
 
 
 class FindMyPictures():
     """Find pictures of interest within a folder of pictures."""
-    def __init__(self, input_sample=None, input_stack=None,
-                output=None, verbose=False):
+    def __init__(self, input_sample=None, input_stack=None, output=None):
         """Explain arguments here."""
-        self.verbose = verbose
         # Initializing folders
         cwd = os.getcwd()
         if input_sample:
@@ -28,17 +28,27 @@ class FindMyPictures():
         else:
             self.output = os.path.join(cwd, 'output')
             
+    def analyze_poi(self):
+        """Explain"""    
+        print("Analyzing the person of interest's face.")
+        start = time.time()
         self.sample_img = self.validate_image_folder(self.input_sample)
-        print('Learning the face of person of interest.')
-        self.known_enc = []
-        for img in self.sample_img:
-            known_img = fr.load_image_file(img)
-            known_enc = fr.face_encodings(known_img, num_jitters=10)
-            if len(known_enc) > 1:
-                raise ValueError('Sample image can not contain more than 1 face.')
-            self.known_enc.extend(known_enc)
-            
-        self.stack_images = self.validate_image_folder(self.input_stack)
+        if len(self.sample_img) < 1:
+            raise ValueError(f'There is no image in the {self.input_sample} folder.')
+        else:
+            print(f'{len(self.sample_img)} images will be analyzed.')
+            self.known_enc = []
+            for img in self.sample_img:
+                known_img = fr.load_image_file(img)
+                known_enc = fr.face_encodings(known_img, num_jitters=10)
+                if len(known_enc) > 1:
+                    print(f"Sample image {img} (training data) can't contain more than 1 face.")
+                else:
+                    self.known_enc.extend(known_enc)
+        end = time.time()
+        process_time = end - start
+        print(f'Finished within {process_time} seconds.')
+        
             
     def validate_image_folder(self, folder):
         """Ensure given folder contains image files."""
@@ -48,7 +58,7 @@ class FindMyPictures():
             for file in file_list:
                 if imghdr.what(os.path.join(folder, file)):
                     img_files.append(os.path.join(folder, file))
-                elif self.verbose:
+                else:
                     print(f'{file} is not an image file')
             if len(img_files) == 0:
                 raise ValueError(f'There is no image in {folder}')
@@ -67,6 +77,10 @@ class FindMyPictures():
                     # Break the loop at first match. No need to check other faces.
                     if True in match:
                         result = True
+                        if self.copy:
+                            copy(img, self.positive_folder)
+                        else:
+                            move(img, self.positive_folder)
                         self.match_count.value += 1
                         break
             if self.verbose:
@@ -80,8 +94,20 @@ class FindMyPictures():
                 print(' '.join(status))
             return result
     
-    def find_pictures(self):
+    def find_pictures(self, verbose=False, copy=True):
         """Looks for the person of interest in the input stack images."""
+        self.stack_images = self.validate_image_folder(self.input_stack)
+        if len(self.input_stack) < 1:
+            raise ValueError(f'There is no image in the {self.input_stack} folder.')
+        self.verbose = verbose
+        positive_folder_name = ''.join(['Positive_Match', '_', datetime.now().strftime('%Y_%m_%d_%H-%M')])
+        positive_folder = os.path.join(self.output, positive_folder_name)
+        os.mkdir(positive_folder)
+        if os.path.isdir(positive_folder):
+            self.positive_folder = positive_folder
+        else:
+            raise ValueError(f'{positive_folder} is not a valid directory.')
+        self.copy = copy    # False means move images to positive match folder.
         print(f'{len(self.stack_images)} images will be analyzed.')
         start = time.time()
         with Manager() as manager:
@@ -93,3 +119,4 @@ class FindMyPictures():
                 print(f'Finished within {self.process_time} seconds.')
                 if self.match_count.value > 0:
                     print(f'Person of interest is recognised in {self.match_count.value} images.')
+                    print(f'Positive matches have been stored in {self.positive_folder}')
