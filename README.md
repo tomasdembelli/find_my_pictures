@@ -46,3 +46,8 @@ Finished within 62.41517496109009 seconds.
 Person of interest is recognised in 8 images.
 Positive matches have been stored in ~/find_my_pictures/output/Positive_Match_2019_09_22_00-15.
 ```
+
+For more details:
+```python
+>>> help(FindMyPictures)
+```
