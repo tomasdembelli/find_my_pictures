@@ -171,4 +171,8 @@ venv.bak/
 *.3dm
 *.max
 
+# folders
+input_sample/
+input_stack/
+output/
 

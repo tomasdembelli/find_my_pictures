@@ -9,8 +9,6 @@ from datetime import datetime
 from shutil import copy, move
 
 
-
-
 class FindMyPictures():
     """Find pictures of a person within a folder of images."""
     
