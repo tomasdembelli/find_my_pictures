@@ -59,7 +59,7 @@ Finished within 14.532799482345581 seconds.
 #### Step 3
 At this point:
 - **input_stack**:  Put the mixed pictures which you want to find the ones with poi in.
-- **output**      : This will be used to store positive mached pictures. A unique folder will be created in it at each search.
+- **output**      : This will be used to store positive matched pictures. A unique folder will be created in it at each search.
 - multiprocess  :   Optional. If not given, 1 processor will be used. Passing `half` could be ideal to be able to use your machine for other tasks while this module is searching for the positive matches. 
 - copy          : If False, the positive matched image files will be moved from input_stack folder to output folder. If True, they will be copied (duplicated).
 ```python
