@@ -1,6 +1,9 @@
 # find_my_pictures
 Find pictures of a person within a set of pictures. 
 
+### Requirements
+This module requires [face_recognition](https://www.google.co.uk/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=2ahUKEwi0qYLZuuTkAhVLQEEAHeeWBMAQFjAAegQIBhAC&url=https%3A%2F%2Fgithub.com%2Fageitgey%2Fface_recognition&usg=AOvVaw1ARIEn_v53-Z7n-ItnMaqz), dlib and cmake installed.
+
 ### Installing
 ```bash
 cd ~
@@ -26,19 +29,40 @@ Images in ~/find_my_pictures/input_sample will be used for training.
 Images in ~/find_my_pictures/input_stack will be analyzed to identify person of interest.
 Images with positive matches will be stored in ~/find_my_pictures/output.
 >>> 
->>> session1.train_poi(accuracy='medium')    # Pictures of the person of interest within the input_sample folder 
-wil be analyzed.
+```
+This will create following folders if not given.
+```
+.
+├── find_my_pictures.py
+├── input_sample  
+├── input_stack
+└── output
+```
+At this point:
+- **input_sample**: Put the pictures of person of interest (poi) ONLY. Not a picture with other people.
+                Images with more than 1 face will be ignored.
+                Handful of pictures should be enough for a good result.
+                It is better if you provide pictures showing diffetent features of the face, such as with beard, with glasses, etc.
+                Each picture should have only one face, which is,obviously, the face of the poi.
+
+```python
+>>> session1.train_poi(accuracy='medium')    # accuracy is optinal. Leaving blank will still give reasonable results.
 # non  image files will be listed here
 Analyzing the person of interest's face within sample images.
 3 images will be analyzed.
 Sample image ~/find_my_pictures/input_sample/IMG_20190901_150845.jpg (training data) can't contain more than 1 face.
 Finished within 14.532799482345581 seconds.
 >>> 
->>> session1.find_pictures(verbose=True, multiprocess='half', copy=False)    # Image files in the input_stack folder 
-will be analzed ant the positive matched ones will be moved to the output folder.
+```
+At this point:
+- **input_stack**:  Put the mixed pictures which you want to find the ones with poi in.
+- **output**      : This will be used to store positive mached pictures. A unique folder will be created in it at each search.
+- multiprocess  :   Optional. If not given, 1 processor will be used. Passing `half` could be ideal to be able to use your machine for other tasks while this module is searching for the positive matches. 
+```python
+>>> session1.find_pictures(verbose=True, multiprocess='half', copy=False)    
 # stats will be shown here
 39 images will be analyzed.
-obaba_biden.png  2 face detected
+obaba_diden.png  2 face detected
 IMG-20190517-WA0001.jpg  2 face detected ** POSITIVE MATCH **
 IMG_20190901_150845 (1).jpg      2 face detected ** POSITIVE MATCH **
 ...
