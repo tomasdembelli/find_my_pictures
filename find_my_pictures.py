@@ -7,6 +7,8 @@ import imghdr
 import time
 from datetime import datetime
 from shutil import copy, move
+import cv2 as cv
+
 
 
 class FindMyPictures():
@@ -77,7 +79,7 @@ class FindMyPictures():
             raise ValueError(f'{folder} is not a directory.')
         return img_files
             
-    def train_poi(self, accuracy=None):
+    def encode_poi(self, accuracy=None):
         """Create 128-dimension face encodings of the poi by analyzing sample image files.
 
         accuracy: mmedium or high (default is optimum value for computing resources)
@@ -95,8 +97,11 @@ class FindMyPictures():
         print(f'{len(self.sample_img)} images will be analyzed.')
         self.known_enc = []
         for img in self.sample_img:
+            '''
             known_img = fr.load_image_file(img)
             known_enc = fr.face_encodings(known_img, num_jitters=num_jitters)
+            '''
+            known_enc = self._encode_img(img, num_jitters=num_jitters)
             if len(known_enc) > 1:
                 print(f"Sample image {img} (training data) can't contain more than 1 face.")
             else:
@@ -106,42 +111,58 @@ class FindMyPictures():
         print(f'Finished within {process_time} seconds.')
         if len(self.known_enc) < 1:
             raise ValueError('Person of interest face recognition is unsuccessfull.')
+         
+    
+    def _encode_img(self, img, num_jitters=1, treshold=1000):
+        """Resize image and return encodings."""
+        img_load = cv.imread(img)
+        # face_recognition works with RGB
+        img_load = cv.cvtColor(img_load, cv.COLOR_BGR2RGB) 
+        x, y, h = img_load.shape
+        if max(x, y) > treshold:
+            scale = 1/(max(x, y)/treshold)
+            img_load = cv.resize(img_load, None, fx=float(scale), fy=float(scale))
+        img_enc = fr.face_encodings(img_load, num_jitters=num_jitters)
+        return img_enc
+
     
     def _analyze_img(self, img):
-            """Return True if there is a positive match in a given image.
-            
-            copy/move the positive matched image into output folder. 
-            """
-            if not hasattr(self, 'known_enc'):
-                raise ValueError('Sample images have not been analyzed yet.')
-            if len(self.known_enc) < 1:
-                raise ValueError('There is no trained data for the person of interest.')
-            img_load = fr.load_image_file(img)
-            img_enc = fr.face_encodings(img_load)
-            result = False
+        """Return True if there is a positive match in a given image.
+
+        copy/move the positive matched image into output folder. 
+        """
+        if not hasattr(self, 'known_enc'):
+            raise ValueError('Sample images have not been analyzed yet.')
+        if len(self.known_enc) < 1:
+            raise ValueError('There is no trained data for the person of interest.')
+        start = time.time()
+        img_enc = self._encode_img(img)
+        end_enc = time.time()
+        result = False
+        if len(img_enc) > 0:
+            for face in img_enc:
+                match = fr.compare_faces(self.known_enc, face)
+                # Break the loop at first face match.
+                if True in match:
+                    result = True
+                    if self.copy:
+                        copy(img, self.positive_folder)
+                    else:
+                        move(img, self.positive_folder)
+                    self.match_count.value += 1
+                    break
+        if self.find_verbose:
+            status = [f'{img.split("/")[-1]}\t']
             if len(img_enc) > 0:
-                for face in img_enc:
-                    match = fr.compare_faces(self.known_enc, face)
-                    # Break the loop at first face match.
-                    if True in match:
-                        result = True
-                        if self.copy:
-                            copy(img, self.positive_folder)
-                        else:
-                            move(img, self.positive_folder)
-                        self.match_count.value += 1
-                        break
-            if self.find_verbose:
-                status = [f'{img.split("/")[-1]}\t']
-                if len(img_enc) > 0:
-                    status.append(f'{len(img_enc)} face detected')
-                else:
-                    status.append('No face detected')
-                if result:
-                    status.append('** POSITIVE MATCH **')
-                print(' '.join(status))
-            return result
+                status.append(f'{len(img_enc)} face detected in {(end_enc - start):9.2f} seconds')
+            else:
+                status.append(f'No face detected in {(end_enc - start):9.2f} seconds')
+            if result:
+                status.append(f'** POSITIVE MATCH **')
+            print(' '.join(status))
+        return result
     
+                      
     def find_pictures(self, multiprocess=None, verbose=False, copy=True):
         """Looks for the person of interest in the input stack images.
         
@@ -160,7 +181,7 @@ class FindMyPictures():
         self.stack_images = self.validate_image_folder(self.input_stack)
         if len(self.input_stack) < 1:
             raise ValueError(f'There is no image in the {self.input_stack} folder.')
-        positive_folder_name = ''.join(['Positive_Match', '_', datetime.now().strftime('%Y_%m_%d_%H-%M')])
+        positive_folder_name = ''.join(['Positive_Match', '_', datetime.now().strftime('%Y_%m_%d_%H:%M:%S')])
         positive_folder = os.path.join(self.output, positive_folder_name)
         os.mkdir(positive_folder)
         if os.path.isdir(positive_folder):
@@ -175,13 +196,14 @@ class FindMyPictures():
             use_cpu = int(cpu_num/2)
         else:
             use_cpu = 1
+        #self.treshold = [treshold for i in self.stack_images]
         with Manager() as manager:
             self.match_count = manager.Value('i', 0)
             with Pool(use_cpu) as pool:
                 pool.map(self._analyze_img, self.stack_images)
                 end = time.time()
                 self.process_time = end - start
-                print(f'Finished within {self.process_time} seconds.')
+                print(f'Finished within {self.process_time:9.2f} seconds.')
                 if self.match_count.value > 0:
                     print(f'Person of interest is recognised in {self.match_count.value} images.')
                     print(f'Positive matches have been stored in {self.positive_folder}.')
