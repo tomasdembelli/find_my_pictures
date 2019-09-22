@@ -42,7 +42,7 @@ This will create following folders if not given.
 #### Step 2
 At this point:
 - **input_sample**: Put the pictures of person of interest (poi) ONLY.
-- Each picture should have only one face, which is,obviously, the face of the poi.
+- Each picture should have only one face, which is, obviously, the face of the poi.
 - Images with more than 1 face will be ignored.
 - Handful of pictures should be enough for a good result.
 - It is better if you provide pictures showing diffetent features of the face, such as with beard, with glasses, etc.
