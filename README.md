@@ -15,7 +15,8 @@ cd ~/find_my_pictures
 pip install -r requirements.txt
 ```
 
-### Examples
+### Example
+#### Step 1
 ```python
 >>> import imp
 >>> import os
@@ -38,12 +39,13 @@ This will create following folders if not given.
 ├── input_stack
 └── output
 ```
+#### Step 2
 At this point:
 - **input_sample**: Put the pictures of person of interest (poi) ONLY. Not a picture with other people.
-                Images with more than 1 face will be ignored.
-                Handful of pictures should be enough for a good result.
-                It is better if you provide pictures showing diffetent features of the face, such as with beard, with glasses, etc.
-                Each picture should have only one face, which is,obviously, the face of the poi.
+- Images with more than 1 face will be ignored.
+- Handful of pictures should be enough for a good result.
+- It is better if you provide pictures showing diffetent features of the face, such as with beard, with glasses, etc.
+- Each picture should have only one face, which is,obviously, the face of the poi.
 
 ```python
 >>> session1.train_poi(accuracy='medium')    # accuracy is optinal. Leaving blank will still give reasonable results.
@@ -54,10 +56,12 @@ Sample image ~/find_my_pictures/input_sample/IMG_20190901_150845.jpg (training d
 Finished within 14.532799482345581 seconds.
 >>> 
 ```
+#### Step 3
 At this point:
 - **input_stack**:  Put the mixed pictures which you want to find the ones with poi in.
 - **output**      : This will be used to store positive mached pictures. A unique folder will be created in it at each search.
 - multiprocess  :   Optional. If not given, 1 processor will be used. Passing `half` could be ideal to be able to use your machine for other tasks while this module is searching for the positive matches. 
+- copy          : If False, the positive matched image files will be moved from input_stack folder to output folder. If True, they will be copied (duplicated).
 ```python
 >>> session1.find_pictures(verbose=True, multiprocess='half', copy=False)    
 # stats will be shown here
@@ -70,8 +74,25 @@ Finished within 62.41517496109009 seconds.
 Person of interest is recognised in 8 images.
 Positive matches have been stored in ~/find_my_pictures/output/Positive_Match_2019_09_22_00-15.
 ```
+#### Step 4
+At this point:
+- Check the results: 
+```pash
+cd ~/find_my_pictures/output
+├── output
+│   ├── Positive_Match_2019_09_21_23-22
+│   │   ├── IMG-20190517-WA0001.jpg
+│   │   ├── IMG_20190608_181730.jpg
+│   │   ├── IMG-20190713-WA0067.jpg
+│   │   └── IMG_20190901_150845 (1).jpg
+│   └── Positive_Match_2019_09_22_00-15
+```
+#### To search for a new person within the same pictures:
+- Replace all the images in the ```input_sample``` folder, and repeat the steps starting from **Step 2**.
+#### To search for the same person within different set of images:
+- Replace the image files in the ```input_stack``` folder, and repeat the steps starting from **Step 3**.
 
-For more details:
+#### For more details:
 ```python
 >>> help(FindMyPictures)
 ```
