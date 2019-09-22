@@ -96,3 +96,7 @@ cd ~/find_my_pictures/output
 ```python
 >>> help(FindMyPictures)
 ```
+
+#### TODO
+- Add a simple GUI.
+- Rewrite the module in C++.
