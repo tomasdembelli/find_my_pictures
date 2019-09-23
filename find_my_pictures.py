@@ -1,5 +1,6 @@
 import face_recognition as fr
 import os
+import sys
 from PIL import Image, ImageDraw
 from multiprocessing import Manager, Pool
 import numpy as np
@@ -10,9 +11,9 @@ from shutil import copy, move
 import cv2 as cv
 
 
-
 class FindMyPictures():
     """Find pictures of a person within a folder of images."""
+    treshold = 1000
     
     def __init__(self, input_sample=None, input_stack=None, output=None, verbose=False):
         """Initiate necessary folders.
@@ -68,24 +69,48 @@ class FindMyPictures():
         if os.path.isdir(folder):
             img_files = []
             file_list = os.listdir(folder)
-            for file in file_list:
-                if imghdr.what(os.path.join(folder, file)):
-                    img_files.append(os.path.join(folder, file))
+            for item in file_list:
+                if not os.path.isdir(item):
+                    full_name = os.path.join(folder, item)
+                    try:
+                        if imghdr.what(full_name):
+                            img_files.append(full_name)
+                        else:
+                            print(f'{item} is not an image file')
+                    except:
+                        print(f'{item} is not an image file. {sys.exc_info()[0]}')
                 else:
-                    print(f'{file} is not an image file')
+                    print(f'{item} is a folder.')
             if len(img_files) == 0:
-                raise ValueError(f'There is no image in {folder}')
+                print (f'There is no image in {folder}')
         else:
-            raise ValueError(f'{folder} is not a directory.')
+            raise ValueError (f'{folder} is not a directory.')
         return img_files
             
-    def encode_poi(self, accuracy=None):
+    def encode_poi(self, folder=None, poi_identifier=None, accuracy=None):
         """Create 128-dimension face encodings of the poi by analyzing sample image files.
 
-        accuracy: mmedium or high (default is optimum value for computing resources)
+        accuracy: medium or high (default is optimum value for computing resources)
         The higher the accuracy is the longer the process takes to complete.
-        """    
-        self.sample_img = self.validate_image_folder(self.input_sample)
+        
+        folder: Absolute path of the folder containing the training data.
+        This is necessary if this method is being used standalone.
+        
+        poi_identfier: This will be used to name the folder for the positive matches.
+        It will be checked in find_pictures method. If not given, it will be auto populated.
+        """   
+        if folder:
+            if os.path.isdir(folder):
+                self.sample_img = self.validate_image_folder(folder)
+            else:
+                raise ValueError(f'{folder} is not a valid directory.')
+        elif hasattr(self, 'input_sample'):
+            self.sample_img = self.validate_image_folder(self.input_sample)
+        else:
+            raise ValueError('Absolute path for the folder containing images of poi is missing.')
+        # This will be checked in find_pictures.
+        if poi_identifier:
+            self.positive_folder_name = poi_identifier 
         print("Analyzing the person of interest's face within sample images.")
         if accuracy == 'medium':
             num_jitters = 10
@@ -97,10 +122,6 @@ class FindMyPictures():
         print(f'{len(self.sample_img)} images will be analyzed.')
         self.known_enc = []
         for img in self.sample_img:
-            '''
-            known_img = fr.load_image_file(img)
-            known_enc = fr.face_encodings(known_img, num_jitters=num_jitters)
-            '''
             known_enc = self._encode_img(img, num_jitters=num_jitters)
             if len(known_enc) > 1:
                 print(f"Sample image {img} (training data) can't contain more than 1 face.")
@@ -114,22 +135,35 @@ class FindMyPictures():
          
     
     def _encode_img(self, img, num_jitters=1, treshold=1000):
-        """Resize image and return encodings."""
+        """Resize image and return encodings.
+        
+        num_jitters: The higher is the more accurate but proportionaly slower.
+        10 is 10 times slower than 1.
+        default is 1.
+        
+        treshold: Maximum dimension in image size. Larger images will be downscaled to the treshold.
+        defaul is 1000.
+        """
+        if hasattr(self, 'treshold'):
+            treshold = self.treshold
+        else:
+            treshold = treshold
         img_load = cv.imread(img)
         # face_recognition works with RGB
         img_load = cv.cvtColor(img_load, cv.COLOR_BGR2RGB) 
         x, y, h = img_load.shape
         if max(x, y) > treshold:
-            scale = 1/(max(x, y)/treshold)
-            img_load = cv.resize(img_load, None, fx=float(scale), fy=float(scale))
+            scale = float(1/(max(x, y)/treshold))
+            img_load = cv.resize(img_load, None, fx=scale, fy=scale)
         img_enc = fr.face_encodings(img_load, num_jitters=num_jitters)
         return img_enc
 
     
-    def _analyze_img(self, img):
+    def _analyze_img(self, img, verbose=False):
         """Return True if there is a positive match in a given image.
-
-        copy/move the positive matched image into output folder. 
+        
+        If it is called from find_pictures method, positive matched image will be
+        copyied/moved into output folder. 
         """
         if not hasattr(self, 'known_enc'):
             raise ValueError('Sample images have not been analyzed yet.')
@@ -145,13 +179,14 @@ class FindMyPictures():
                 # Break the loop at first face match.
                 if True in match:
                     result = True
-                    if self.copy:
-                        copy(img, self.positive_folder)
-                    else:
-                        move(img, self.positive_folder)
-                    self.match_count.value += 1
+                    if hasattr(self, 'copy'):
+                        if self.copy:
+                            copy(img, self.positive_folder)
+                        else:
+                            move(img, self.positive_folder)
+                        self.match_count.value += 1
                     break
-        if self.find_verbose:
+        if (hasattr(self, 'find_verbose') and self.find_verbose) or verbose:
             status = [f'{img.split("/")[-1]}\t']
             if len(img_enc) > 0:
                 status.append(f'{len(img_enc)} face detected in {(end_enc - start):9.2f} seconds')
@@ -163,7 +198,7 @@ class FindMyPictures():
         return result
     
                       
-    def find_pictures(self, multiprocess=None, verbose=False, copy=True):
+    def find_pictures(self, folder=None, multiprocess=None, verbose=False, copy=True, treshold=1000):
         """Looks for the person of interest in the input stack images.
         
         copy: If True, positive matched images will be copied into output folder. 
@@ -172,21 +207,39 @@ class FindMyPictures():
         multiprocess: full --> All processors will be used.
                       half --> Half of the processors will be used.
                       default --> 1 processor will be used.
+                      
+        folder: Absolute path for the folder containing the mixed images. This is necessary if this
+        method is being used standalone.
+        
+        treshold: Maximum dimension in image size. Larger images will be downscaled to the treshold.
+        defaul is 1000. This will be used in _analyse_img method.
         """
         if not hasattr(self, 'known_enc'):
             raise ValueError('Sample images have not been analyzed yet.')
         if len(self.known_enc) < 1:
             raise ValueError('There is no trained data for the person of interest.')
+        if folder:
+            if os.path.isdir(folder):
+                self.stack_images = self.validate_image_folder(folder)
+            else:
+                raise ValueError(f'{folder} is not a valid directory.')
+        elif hasattr(self, 'input_stack'):
+            self.stack_images = self.validate_image_folder(self.input_stack)
+        else:
+            raise ValueError('Absolute path for the folder containing mixed images is missing.')
+        self.treshold = treshold
         self.find_verbose = verbose
-        self.stack_images = self.validate_image_folder(self.input_stack)
         if len(self.input_stack) < 1:
             raise ValueError(f'There is no image in the {self.input_stack} folder.')
-        positive_folder_name = ''.join(['Positive_Match', '_', datetime.now().strftime('%Y_%m_%d_%H:%M:%S')])
+        if hasattr(self, 'positive_folder_name'):
+            positive_folder_name = self.positive_folder_name
+        else:
+            positive_folder_name = ''.join(['Positive_Match', '_', datetime.now().strftime('%Y_%m_%d_%H:%M:%S')])
         positive_folder = os.path.join(self.output, positive_folder_name)
-        os.mkdir(positive_folder)
-        if os.path.isdir(positive_folder):
-            self.positive_folder = positive_folder
-        self.copy = copy    # False means move images to positive match folder.
+        if not os.path.isdir(positive_folder):
+            os.mkdir(positive_folder)
+        self.positive_folder = positive_folder
+        self.copy = copy    # False means moving images to positive match folder.
         print(f'{len(self.stack_images)} images will be analyzed.')
         start = time.time()
         cpu_num = os.cpu_count()
@@ -207,3 +260,6 @@ class FindMyPictures():
                 if self.match_count.value > 0:
                     print(f'Person of interest is recognised in {self.match_count.value} images.')
                     print(f'Positive matches have been stored in {self.positive_folder}.')
+                # Delete following attributes to decouple _analyze_img method
+                del self.copy
+                del self.find_verbose
