@@ -7,7 +7,19 @@ import numpy as np
 import imghdr
 import time
 from datetime import datetime
-from shutil import copy, move
+import shutil 
+import cv2 as cv
+
+import face_recognition as fr
+import os
+import sys
+from PIL import Image, ImageDraw
+from multiprocessing import Manager, Pool
+import numpy as np
+import imghdr
+import time
+from datetime import datetime
+import shutil
 import cv2 as cv
 
 
@@ -160,11 +172,7 @@ class FindMyPictures():
 
     
     def _analyze_img(self, img, verbose=False):
-        """Return True if there is a positive match in a given image.
-        
-        If it is called from find_pictures method, positive matched image will be
-        copyied/moved into output folder. 
-        """
+        """Return True if there is a positive match in a given image."""
         if not hasattr(self, 'known_enc'):
             raise ValueError('Sample images have not been analyzed yet.')
         if len(self.known_enc) < 1:
@@ -179,12 +187,7 @@ class FindMyPictures():
                 # Break the loop at first face match.
                 if True in match:
                     result = True
-                    if hasattr(self, 'copy'):
-                        if self.copy:
-                            copy(img, self.positive_folder)
-                        else:
-                            move(img, self.positive_folder)
-                        self.match_count.value += 1
+                    self.positive_images.value += [img]
                     break
         if (hasattr(self, 'find_verbose') and self.find_verbose) or verbose:
             status = [f'{img.split("/")[-1]}\t']
@@ -198,11 +201,8 @@ class FindMyPictures():
         return result
     
                       
-    def find_pictures(self, folder=None, multiprocess=None, verbose=False, copy=True, treshold=1000):
+    def find_pictures(self, folder=None, multiprocess=None, verbose=False, treshold=1000):
         """Looks for the person of interest in the input stack images.
-        
-        copy: If True, positive matched images will be copied into output folder. 
-              If False, they will be moved to the output folder.
               
         multiprocess: full --> All processors will be used.
                       half --> Half of the processors will be used.
@@ -231,15 +231,7 @@ class FindMyPictures():
         self.find_verbose = verbose
         if len(self.input_stack) < 1:
             raise ValueError(f'There is no image in the {self.input_stack} folder.')
-        if hasattr(self, 'positive_folder_name'):
-            positive_folder_name = self.positive_folder_name
-        else:
-            positive_folder_name = ''.join(['Positive_Match', '_', datetime.now().strftime('%Y_%m_%d_%H:%M:%S')])
-        positive_folder = os.path.join(self.output, positive_folder_name)
-        if not os.path.isdir(positive_folder):
-            os.mkdir(positive_folder)
-        self.positive_folder = positive_folder
-        self.copy = copy    # False means moving images to positive match folder.
+        self.positive_matched_images = []
         print(f'{len(self.stack_images)} images will be analyzed.')
         start = time.time()
         cpu_num = os.cpu_count()
@@ -251,15 +243,48 @@ class FindMyPictures():
             use_cpu = 1
         #self.treshold = [treshold for i in self.stack_images]
         with Manager() as manager:
-            self.match_count = manager.Value('i', 0)
+            self.positive_images = manager.Value('i', [])
             with Pool(use_cpu) as pool:
                 pool.map(self._analyze_img, self.stack_images)
                 end = time.time()
                 self.process_time = end - start
                 print(f'Finished within {self.process_time:9.2f} seconds.')
-                if self.match_count.value > 0:
-                    print(f'Person of interest is recognised in {self.match_count.value} images.')
-                    print(f'Positive matches have been stored in {self.positive_folder}.')
+                if len(self.positive_images.value) > 0:
+                    print(f'Person of interest is recognised in {len(self.positive_images.value)} images.')
+                    #print(f'Positive matches have been stored in {self.positive_folder}.')
+                    self.positive_matched_images = self.positive_images.value
                 # Delete following attributes to decouple _analyze_img method
-                del self.copy
+                #del self.copy
                 del self.find_verbose
+        return self.positive_matched_images
+                      
+                      
+    def save_result(self, image_list=None, folder=None, copy=True):
+        """Save images into given folder."""
+        if not image_list:
+            image_list = self.positive_matched_images
+        if folder:
+            if os.path.isdir(folder):
+                positive_folder = folder
+            else:
+                raise ValueError(f'{folder} is not a directory.')
+        else:
+            if hasattr(self, 'positive_folder_name'):
+                positive_folder_name = self.positive_folder_name
+            else:
+                positive_folder_name = ''.join(['Positive_Match', '_', datetime.now().strftime('%Y_%m_%d_%H:%M:%S')])
+            positive_folder = os.path.join(self.output, positive_folder_name)
+        if not os.path.isdir(positive_folder):
+            os.mkdir(positive_folder)
+        self.positive_folder = positive_folder
+        if len(image_list) > 0:
+            if copy:    # False means moving images to positive match folder.
+                for img in image_list:
+                    shutil.copy(img, self.positive_folder)
+                print(f'Positive matches have been copied to {self.positive_folder}.')
+            else:
+                for img in image_list:
+                    shutil.move(img, self.positive_folder)
+                print(f'Positive matches have been moved to {self.positive_folder}.')
+        else:
+            print(f'Image list is empty.')
