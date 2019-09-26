@@ -25,24 +25,23 @@ import cv2 as cv
 
 class FindMyPictures():
     """Find pictures of a person within a folder of images."""
-    treshold = 1000
     
     def __init__(self, input_sample=None, input_stack=None, output=None, verbose=False):
         """Initiate necessary folders.
         
         Absolute path has to be provided for the folders.
         
-        input_sample: This folder should contain only person of interest (poi) and each image
-        has to have only one face.
-        input_stack: The pictures of poi will be searched within this folder.
+        input_sample: This folder should contain only images of person of interest (poi) and images
+        can have only one face.
+        input_stack: The pictures containing poi will be searched within this folder.
         output: Pictures with positive match will be stored in this folder.
         
-        The folders will be auto created in the directory from where the module initiated
+        The folders will be auto created in the directory from where the module is initiated
         if they are not provided. Make sure the process has the right privileges for creating
         directories.
         """
+        
         # Initializing folders
-        self.initiate_verbose = verbose
         cwd = os.getcwd()
         if input_sample:
             if os.path.isdir(input_sample):
@@ -71,13 +70,14 @@ class FindMyPictures():
             self.output = os.path.join(cwd, 'output')
             if not os.path.isdir(self.output):
                 os.mkdir(self.output)
-        if self.initiate_verbose:
+        if verbose:
             print(f'Images in {self.input_sample} will be used for training.')
             print(f'Images in {self.input_stack} will be analyzed to identify person of interest.')
             print(f'Images with positive matches will be stored in {self.output}.')
             
+            
     def validate_image_folder(self, folder):
-        """Ensure given folder contains image files and only the image files are used for analysis."""
+        """Ensure that given folder contains image files and only image files are used for analysis."""
         if os.path.isdir(folder):
             img_files = []
             file_list = os.listdir(folder)
@@ -99,6 +99,7 @@ class FindMyPictures():
             raise ValueError (f'{folder} is not a directory.')
         return img_files
             
+        
     def encode_poi(self, folder=None, poi_identifier=None, accuracy=None):
         """Create 128-dimension face encodings of the poi by analyzing sample image files.
 
@@ -106,11 +107,12 @@ class FindMyPictures():
         The higher the accuracy is the longer the process takes to complete.
         
         folder: Absolute path of the folder containing the training data.
-        This is necessary if this method is being used standalone.
+        If not provided auto created input_sample folder will be used.
         
         poi_identfier: This will be used to name the folder for the positive matches.
-        It will be checked in find_pictures method. If not given, it will be auto populated.
-        """   
+        It will be used in find_pictures method. If not given here, it will be auto populated.
+        """  
+        
         if folder:
             if os.path.isdir(folder):
                 self.sample_img = self.validate_image_folder(folder)
@@ -119,8 +121,8 @@ class FindMyPictures():
         elif hasattr(self, 'input_sample'):
             self.sample_img = self.validate_image_folder(self.input_sample)
         else:
-            raise ValueError('Absolute path for the folder containing images of poi is missing.')
-        # This will be checked in find_pictures.
+            raise ValueError('Folder containing images of poi is not provided.')
+        # This will be used in find_pictures method.
         if poi_identifier:
             self.positive_folder_name = poi_identifier 
         print("Analyzing the person of interest's face within sample images.")
@@ -150,12 +152,12 @@ class FindMyPictures():
         """Resize image and return encodings.
         
         num_jitters: The higher is the more accurate but proportionaly slower.
-        10 is 10 times slower than 1.
-        default is 1.
+        10 is 10 times slower than 1. The default is 1.
         
         treshold: Maximum dimension in image size. Larger images will be downscaled to the treshold.
-        defaul is 1000.
+        The defaul value is 1000.
         """
+        
         if hasattr(self, 'treshold'):
             treshold = self.treshold
         else:
@@ -208,12 +210,13 @@ class FindMyPictures():
                       half --> Half of the processors will be used.
                       default --> 1 processor will be used.
                       
-        folder: Absolute path for the folder containing the mixed images. This is necessary if this
-        method is being used standalone.
+        folder: Absolute path for the folder containing the mixed images. If not given, auto populated
+        input_stack folder will be used.
         
-        treshold: Maximum dimension in image size. Larger images will be downscaled to the treshold.
-        defaul is 1000. This will be used in _analyse_img method.
+        treshold: Maximum dimension of image size. Larger images will be downscaled to the treshold.
+        The default is 1000. This will be used in _analyse_img method.
         """
+                      
         if not hasattr(self, 'known_enc'):
             raise ValueError('Sample images have not been analyzed yet.')
         if len(self.known_enc) < 1:
@@ -226,7 +229,7 @@ class FindMyPictures():
         elif hasattr(self, 'input_stack'):
             self.stack_images = self.validate_image_folder(self.input_stack)
         else:
-            raise ValueError('Absolute path for the folder containing mixed images is missing.')
+            raise ValueError('Folder containing unkown images is not povided.')
         self.treshold = treshold
         self.find_verbose = verbose
         if len(self.input_stack) < 1:
@@ -241,7 +244,6 @@ class FindMyPictures():
             use_cpu = int(cpu_num/2)
         else:
             use_cpu = 1
-        #self.treshold = [treshold for i in self.stack_images]
         with Manager() as manager:
             self.positive_images = manager.Value('i', [])
             with Pool(use_cpu) as pool:
@@ -251,10 +253,8 @@ class FindMyPictures():
                 print(f'Finished within {self.process_time:9.2f} seconds.')
                 if len(self.positive_images.value) > 0:
                     print(f'Person of interest is recognised in {len(self.positive_images.value)} images.')
-                    #print(f'Positive matches have been stored in {self.positive_folder}.')
                     self.positive_matched_images = self.positive_images.value
                 # Delete following attributes to decouple _analyze_img method
-                #del self.copy
                 del self.find_verbose
         return self.positive_matched_images
                       
