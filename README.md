@@ -97,11 +97,11 @@ cd ~/find_my_pictures/output
 ```
 #### To search for a new person within the same mixed pictures:
 - Call `session1.encode_poi(folder='path/to/new/poi_images', poi_identifier='John_Doe')` and continue from **Step 3**.
-OR
+- OR
 - Replace all the images in the `input_sample` folder, annd repeat the steps starting from **Step 2**.
 #### To search for the same person within different set of images:
 - Call `session1.find_pictures(folder='path/to/new/mixed/images')` and continue from **Step 4**.
-OR
+- OR
 - Replace the image files in the `input_stack` folder, and repeat the steps starting from **Step 3**.
 
 #### For more details:
