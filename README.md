@@ -76,7 +76,7 @@ Person of interest is recognised in 10 images.
 [`some/path/image_1`, `another/path/image_209`, ...]
 ```
 #### Step 4: Saving the positevely identified pictures in a folder of choice.
-- `image_list`: (optional) This is necessary if this method is used for saving a list of files in a folder of choice.
+- `file_list`: (optional) This is necessary if this method is used for saving a list of files in a folder of choice.
 - `folder`: If not given `output` folder will be used.
 - `copy`: If False, the positive matched image files will be moved from `input_stack` folder to `output` folder. If True, they will be copied (duplicated).
 ```python
@@ -107,6 +107,10 @@ cd ~/find_my_pictures/output
 ```python
 >>> help(FindMyPictures)
 ```
+#### Note
+Each method can be used independently.
+For example to save a list of files into a folder:
+`session1.save_result(file_list=['path/to/file1', 'path/to/file2'], folder='folder/of/my/choice')`
 
 #### TODO
 - Add a simple GUI.
