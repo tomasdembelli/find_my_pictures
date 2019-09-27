@@ -46,7 +46,6 @@ This will create the following folders if not given.
 - Handful of pictures should be enough for a good result.
 - It is better if you provide pictures showing diffetent features of the face, such as with beard, with glasses, etc.
 - accuracy: Leaving blank should still give good results. `medium` and `high` might give better results at positive matching but the process of poi face encoding will take longer.
-- poi_identifier: (optional) This string will be used to name the folder with positively matched pictures. If not given, a random name will be generated.
 
 ```python
 >>> session1.encode_poi(accuracy='medium')    # accuracy is optinal. Leaving blank will still give reasonable results.
@@ -82,7 +81,7 @@ Person of interest is recognised in 10 images.
 - `copy`: If False, the positive matched image files will be moved from `input_stack` folder to `output` folder. If True, they will be copied (duplicated).
 ```python
 >>> session1.save_result()
-Positive matches have been copied to /home/tomasdem/repos/find_my_pictures/find_my_pictures/output/unique_name.
+Positive matches have been stored to ~/find_my_pictures/output/Positive_Match_2019_09_28_00:16:46.
 ```
 #### Step 5: Checking the results.
 ```pash
