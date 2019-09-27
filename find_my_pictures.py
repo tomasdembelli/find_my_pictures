@@ -241,16 +241,16 @@ class FindMyPictures():
         return self.positive_matched_images
                       
                       
-    def save_result(self, image_list=None, folder=None, copy=True):
+    def save_result(self, file_list=None, folder=None, copy=True):
         """Save images into given folder.
         
-        image_list: List of files with absolute path.
+        file_list: List of files with absolute path.
         folder: Absolute path for the folder to save files.
         copy:  If False, the positive matched image files will be moved from input_stack folder to output 
         folder. If True, they will be copied (duplicated).
         """
-        if not image_list:
-            image_list = self.positive_matched_images
+        if not file_list:
+            file_list = self.positive_matched_images
         if folder:
             if os.path.isdir(folder):
                 positive_folder = folder
@@ -262,8 +262,8 @@ class FindMyPictures():
             if not os.path.isdir(positive_folder):
                 os.mkdir(positive_folder)
         self.positive_folder = positive_folder
-        if len(image_list) > 0:
-            for img in image_list:
+        if len(file_list) > 0:
+            for img in file_list:
                 if os.path.isfile(img):
                     if copy:    # False means moving images to positive match folder.
                         shutil.copy(img, self.positive_folder)
@@ -273,7 +273,7 @@ class FindMyPictures():
                     raise ValueError(f'{img} is not a file.')
             print(f'Positive matches have been stored to {self.positive_folder}.')
         else:
-            print(f'Image list is empty.')
+            print(f'File list is empty.')
                       
                       
 if __name__ == '__main__':
