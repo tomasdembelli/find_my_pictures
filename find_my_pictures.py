@@ -7,18 +7,6 @@ import numpy as np
 import imghdr
 import time
 from datetime import datetime
-import shutil 
-import cv2 as cv
-
-import face_recognition as fr
-import os
-import sys
-from PIL import Image, ImageDraw
-from multiprocessing import Manager, Pool
-import numpy as np
-import imghdr
-import time
-from datetime import datetime
 import shutil
 import cv2 as cv
 
@@ -100,7 +88,7 @@ class FindMyPictures():
         return img_files
             
         
-    def encode_poi(self, folder=None, poi_identifier=None, accuracy=None):
+    def encode_poi(self, folder=None, accuracy=None):
         """Create 128-dimension face encodings of the poi by analyzing sample image files.
 
         accuracy: medium or high (default is optimum value for computing resources)
@@ -108,9 +96,6 @@ class FindMyPictures():
         
         folder: Absolute path of the folder containing the training data.
         If not provided auto created input_sample folder will be used.
-        
-        poi_identfier: This will be used to name the folder for the positive matches.
-        It will be used in find_pictures method. If not given here, it will be auto populated.
         """  
         
         if folder:
@@ -122,9 +107,6 @@ class FindMyPictures():
             self.sample_img = self.validate_image_folder(self.input_sample)
         else:
             raise ValueError('Folder containing images of poi is not provided.')
-        # This will be used in find_pictures method.
-        if poi_identifier:
-            self.positive_folder_name = poi_identifier 
         print("Analyzing the person of interest's face within sample images.")
         if accuracy == 'medium':
             num_jitters = 10
@@ -260,7 +242,13 @@ class FindMyPictures():
                       
                       
     def save_result(self, image_list=None, folder=None, copy=True):
-        """Save images into given folder."""
+        """Save images into given folder.
+        
+        image_list: List of files with absolute path.
+        folder: Absolute path for the folder to save files.
+        copy:  If False, the positive matched image files will be moved from input_stack folder to output 
+        folder. If True, they will be copied (duplicated).
+        """
         if not image_list:
             image_list = self.positive_matched_images
         if folder:
@@ -269,22 +257,25 @@ class FindMyPictures():
             else:
                 raise ValueError(f'{folder} is not a directory.')
         else:
-            if hasattr(self, 'positive_folder_name'):
-                positive_folder_name = self.positive_folder_name
-            else:
-                positive_folder_name = ''.join(['Positive_Match', '_', datetime.now().strftime('%Y_%m_%d_%H:%M:%S')])
+            positive_folder_name = ''.join(['Positive_Match', '_', datetime.now().strftime('%Y_%m_%d_%H:%M:%S')])
             positive_folder = os.path.join(self.output, positive_folder_name)
-        if not os.path.isdir(positive_folder):
-            os.mkdir(positive_folder)
+            if not os.path.isdir(positive_folder):
+                os.mkdir(positive_folder)
         self.positive_folder = positive_folder
         if len(image_list) > 0:
-            if copy:    # False means moving images to positive match folder.
-                for img in image_list:
-                    shutil.copy(img, self.positive_folder)
-                print(f'Positive matches have been copied to {self.positive_folder}.')
-            else:
-                for img in image_list:
-                    shutil.move(img, self.positive_folder)
-                print(f'Positive matches have been moved to {self.positive_folder}.')
+            for img in image_list:
+                if os.path.isfile(img):
+                    if copy:    # False means moving images to positive match folder.
+                        shutil.copy(img, self.positive_folder)
+                    else:
+                        shutil.move(img, self.positive_folder)
+                else:
+                    raise ValueError(f'{img} is not a file.')
+            print(f'Positive matches have been stored to {self.positive_folder}.')
         else:
             print(f'Image list is empty.')
+                      
+                      
+if __name__ == '__main__':
+    print(help(FindMyPictures))
+
