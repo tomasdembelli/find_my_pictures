@@ -3,6 +3,6 @@ cmake==3.13.3
 dlib==19.17.0
 face-recognition==1.2.3
 face-recognition-models==0.3.0
-numpy==1.17.2
+numpy==1.22.0
 Pillow==6.2.0
 
